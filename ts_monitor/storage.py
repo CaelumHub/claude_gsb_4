@@ -324,6 +324,19 @@ class TimeSeriesStorage:
             alerts = [a for a in alerts if a.get("severity") == severity]
         return sorted(alerts, key=lambda x: x.get("timestamp", 0), reverse=True)[:limit]
 
+    def get_alert_counts(self) -> Dict[str, int]:
+        """Get alerts grouped by current status."""
+        counts = {
+            "active": 0,
+            "acknowledged": 0,
+            "resolved": 0,
+            "suppressed": 0,
+        }
+        for alert in self.alerts.get("alerts", []):
+            status = alert.get("status", "active")
+            counts[status] = counts.get(status, 0) + 1
+        return counts
+
     def add_alert(self, alert: Dict) -> Dict:
         """Add a new alert with deduplication."""
         alert_id = alert.get("id", f"alert_{int(time.time()*1000)}")
@@ -396,6 +409,8 @@ class TimeSeriesStorage:
                     total_size += os.path.getsize(fpath)
                     shard_count += 1
 
+        alert_counts = self.get_alert_counts()
+
         return {
             "shard_count": shard_count,
             "total_size_bytes": total_size,
@@ -403,6 +418,11 @@ class TimeSeriesStorage:
             "metric_count": len(self.get_metrics()),
             "source_count": len(self.get_sources()),
             "rule_count": len(self.get_rules()),
-            "alert_count": len(self.alerts.get("alerts", [])),
+            "alert_count": alert_counts["active"],
+            "active_alert_count": alert_counts["active"],
+            "acknowledged_alert_count": alert_counts["acknowledged"],
+            "resolved_alert_count": alert_counts["resolved"],
+            "suppressed_alert_count": alert_counts["suppressed"],
+            "total_alert_count": sum(alert_counts.values()),
             "cache_size": sum(len(v) for v in self._cache.values())
         }

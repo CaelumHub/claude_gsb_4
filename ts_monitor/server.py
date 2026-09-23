@@ -324,8 +324,9 @@ class TimeSeriesHandler(BaseHTTPRequestHandler):
                     "data": data[-50:]  # Last 50 points for sparkline
                 }
 
-        # Recent alerts
-        recent_alerts = self.storage.get_alerts(limit=10)
+        # Recent active alerts. Acknowledged/resolved alerts remain available
+        # through /api/alerts, but must not remain on the live dashboard.
+        recent_alerts = self.storage.get_alerts(status="active", limit=10)
 
         self._send_json({
             "timestamp": now,

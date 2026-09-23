@@ -1599,7 +1599,10 @@ async function loadData() {
 
 async function refreshCurrentPage() {
   switch (state.currentPage) {
-    case 'dashboard': await loadDashboard(); break;
+    case 'dashboard':
+      await loadAlerts();
+      await loadDashboard();
+      break;
     case 'alerts': await loadAlerts(); break;
     case 'history': break; // Manual refresh
     case 'rules': await loadRules(); break;
@@ -1619,11 +1622,15 @@ async function loadDashboard() {
   state.dashboardData = data;
   state.metrics = Object.keys(data.metrics || {});
 
+  const recentAlerts = state.alerts
+    .filter(a => a.status === 'active')
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 5);
   renderStatsGrid(data);
   renderDashMetricChips();
   renderDashLineChart(data);
   renderDashHeatmap(data);
-  renderRecentAlerts(data.recent_alerts || []);
+  renderRecentAlerts(recentAlerts);
 }
 
 function renderStatsGrid(data) {
@@ -2083,6 +2090,7 @@ async function loadAlerts() {
   state.alerts = data.alerts || [];
   renderAlerts();
   updateAlertBadge();
+  updateHeaderStats();
 }
 
 function filterAlerts() {
