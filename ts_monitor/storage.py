@@ -315,13 +315,22 @@ class TimeSeriesStorage:
 
     def get_alerts(self, status: Optional[str] = None,
                    severity: Optional[str] = None,
-                   limit: int = 200) -> List[Dict]:
-        """Get alerts with optional filtering."""
+                   limit: int = 200,
+                   unresolved_only: bool = False) -> List[Dict]:
+        """Get alerts with optional filtering.
+
+        When unresolved_only is True, only active/acknowledged alerts are
+        returned (resolved alerts have been handled and should not show up
+        in live views such as the dashboard recent-alerts list).
+        """
         alerts = self.alerts.get("alerts", [])
         if status:
             alerts = [a for a in alerts if a.get("status") == status]
         if severity:
             alerts = [a for a in alerts if a.get("severity") == severity]
+        if unresolved_only:
+            alerts = [a for a in alerts
+                      if a.get("status") in ("active", "acknowledged")]
         return sorted(alerts, key=lambda x: x.get("timestamp", 0), reverse=True)[:limit]
 
     def add_alert(self, alert: Dict) -> Dict:
@@ -396,6 +405,11 @@ class TimeSeriesStorage:
                     total_size += os.path.getsize(fpath)
                     shard_count += 1
 
+        all_alerts = self.alerts.get("alerts", [])
+        active_alert_count = sum(
+            1 for a in all_alerts if a.get("status") == "active"
+        )
+
         return {
             "shard_count": shard_count,
             "total_size_bytes": total_size,
@@ -403,6 +417,7 @@ class TimeSeriesStorage:
             "metric_count": len(self.get_metrics()),
             "source_count": len(self.get_sources()),
             "rule_count": len(self.get_rules()),
-            "alert_count": len(self.alerts.get("alerts", [])),
+            "active_alert_count": active_alert_count,
+            "alert_count": len(all_alerts),
             "cache_size": sum(len(v) for v in self._cache.values())
         }

@@ -1599,7 +1599,11 @@ async function loadData() {
 
 async function refreshCurrentPage() {
   switch (state.currentPage) {
-    case 'dashboard': await loadDashboard(); break;
+    case 'dashboard':
+      // Reload alerts as well so the recent-alerts list, header count and
+      // sidebar badge reflect acknowledge/resolve actions immediately.
+      await Promise.all([loadDashboard(), loadAlerts()]);
+      break;
     case 'alerts': await loadAlerts(); break;
     case 'history': break; // Manual refresh
     case 'rules': await loadRules(); break;
@@ -1649,7 +1653,7 @@ function renderStatsGrid(data) {
     </div>
     <div class="stat-card red">
       <div class="stat-label">活跃告警</div>
-      <div class="stat-value">${stats.alert_count || 0}</div>
+      <div class="stat-value">${stats.active_alert_count ?? state.alerts.filter(a => a.status === 'active').length}</div>
     </div>
     <div class="stat-card purple">
       <div class="stat-label">检测规则</div>
@@ -1824,7 +1828,9 @@ function renderRecentAlerts(alerts) {
           <span>${formatTime(a.timestamp)}</span>
         </div>
       </div>
-      <span class="badge badge-${a.severity === 'critical' ? 'danger' : a.severity === 'warning' ? 'warning' : 'info'}">${a.severity || 'warning'}</span>
+      ${a.status === 'acknowledged'
+        ? '<span class="badge badge-warning">已确认</span>'
+        : `<span class="badge badge-${a.severity === 'critical' ? 'danger' : a.severity === 'warning' ? 'warning' : 'info'}">${a.severity || 'warning'}</span>`}
     </div>
   `).join('');
 }
